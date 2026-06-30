@@ -12,19 +12,19 @@ LangGraph 그래프의 노드(Node) 정의
 """
 
 import json
-import re
 from datetime import datetime
 from typing import Literal
+
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_upstage import ChatUpstage
 from loguru import logger
 from pydantic import BaseModel, Field
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_upstage import ChatUpstage
 
-from app.graph.state import LumiState
 from app.core.config import settings
-from app.core.prompts import ROUTER_PROMPT, RESPONSE_PROMPT, RAG_RESPONSE_PROMPT
-from app.tools.executor import ToolExecutor
+from app.core.prompts import RAG_RESPONSE_PROMPT, RESPONSE_PROMPT, ROUTER_PROMPT
+from app.graph.state import LumiState
 from app.repositories.rag import get_rag_repository
+from app.tools.executor import ToolExecutor
 
 
 class RouterOutput(BaseModel):
@@ -57,7 +57,7 @@ def get_llm() -> ChatUpstage:
         api_key=settings.upstage_api_key,
         model=settings.llm_model,
         timeout=30,
-        max_retries=2
+        max_retries=2,
     )
 
 
@@ -137,8 +137,12 @@ async def router_node(state: LumiState) -> dict:
                     tool_name = tool_name.split("?")[0].strip()
 
         # 유효한 tool 목록
-        valid_tools = ["get_schedule", "send_fan_letter", "recommend_song",
-                       "get_weather"]
+        valid_tools = [
+            "get_schedule",
+            "send_fan_letter",
+            "recommend_song",
+            "get_weather",
+        ]
 
         # intent가 tool인데 tool_name이 없거나 유효하지 않으면 chat으로 전환
         result_intent = result.intent
@@ -201,7 +205,7 @@ async def rag_node(state: LumiState) -> dict:
         docs = await rag_repo.search_similar(
             query=user_input,
             k=3,
-            filter_status="active"  # v2.5만 검색!
+            filter_status="active",  # v2.5만 검색!
         )
 
         # 검색 결과에서 content만 추출
@@ -211,7 +215,9 @@ async def rag_node(state: LumiState) -> dict:
         for i, doc in enumerate(docs):
             version = doc.get("metadata", {}).get("version", "?")
             similarity = doc.get("similarity", 0)
-            logger.debug(f"  [{i+1}] v{version} (sim: {similarity:.3f}): {doc['content'][:50]}...")
+            logger.debug(
+                f"  [{i + 1}] v{version} (sim: {similarity:.3f}): {doc['content'][:50]}..."
+            )
 
         logger.info(f"📚 [RAG] 검색 완료: {len(retrieved_docs)}개 문서")
 
@@ -310,7 +316,7 @@ async def response_node(state: LumiState) -> dict:
     elif intent == "tool":
         # Tool 응답: Tool 실행 결과 포함
         tool_result = state["tool_result"]
-        tool_name = state["tool_name"]
+        tool_name = state["tool_name"]  # noqa: F841
 
         # Tool 결과를 자연스러운 응답으로 변환하기 위한 컨텍스트
         result_context = f"""
@@ -354,7 +360,7 @@ async def response_node(state: LumiState) -> dict:
         response = await llm.ainvoke(messages)
         ai_response = response.content
 
-        logger.info(f"💬 [Response] 응답 생성 완료")
+        logger.info("💬 [Response] 응답 생성 완료")
 
     except Exception as e:
         logger.error(f"응답 생성 오류: {e}")

@@ -28,14 +28,11 @@
 name: Lumi Agent CD
 
 on:
-  push:
+  # CI(Lumi Agent CI)가 성공한 다음에만 실행 (main 브랜치)
+  workflow_run:
+    workflows: ["Lumi Agent CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "app/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - "pyproject.toml"
-      - "uv.lock"
 
   # 수동 실행 허용 (긴급 배포/롤백용)
   workflow_dispatch:
@@ -63,8 +60,8 @@ jobs:
   build-and-push:
     name: Build & Push to GHCR
     runs-on: ubuntu-latest
-    # 롤백 시에는 빌드 스킵
-    if: ${{ !inputs.rollback }}
+    # CI(Lumi Agent CI) 성공 후에만, 또는 수동 실행(롤백 제외)
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && !inputs.rollback) }}
 
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}

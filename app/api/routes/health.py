@@ -8,13 +8,14 @@ Production 환경에서 필수적인 헬스체크 API입니다.
     GET /health/         - 기본 헬스체크
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
 from app.core.config import settings
 
 router = APIRouter()
+
 
 # 도커 이미지를 위해 구현
 @router.get("/")
@@ -30,9 +31,8 @@ async def health_check() -> dict:
     """
     return {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "service": "lumi-agent",
         "version": "0.5.0",
         "environment": settings.environment,
     }
-
